@@ -14,7 +14,7 @@ export class ClockifyTrackerView extends ItemView {
   private overtimeEl: HTMLElement | null = null;
   private weekTotalEl: HTMLElement | null = null;
   private runningElapsedEl: HTMLElement | null = null;
-  private durationEls = new Map<string, HTMLElement>();
+  private durationEls = new Map<string, HTMLElement[]>();
 
   constructor(leaf: WorkspaceLeaf, private readonly plugin: ClockifyObsidianPlugin) {
     super(leaf);
@@ -139,9 +139,10 @@ export class ClockifyTrackerView extends ItemView {
     });
 
     this.renderQuickAdd(content);
-    this.renderEntries(content);
+    this.renderEntries(content, this.todayEntries, "clockify-today-list");
     const footer = content.createDiv({ cls: "clockify-footer-total" });
     this.weekTotalEl = this.renderStat(footer, "Week total", formatDuration(sumEntries(this.weekEntries, now)));
+    this.renderWeeklyTimeline(content);
     this.startLiveUpdates();
   }
 
@@ -178,9 +179,9 @@ export class ClockifyTrackerView extends ItemView {
     });
   }
 
-  private renderEntries(content: HTMLElement): void {
-    const list = content.createDiv({ cls: "clockify-entry-list" });
-    const sorted = [...this.todayEntries].sort((a, b) => a.timeInterval.start.localeCompare(b.timeInterval.start));
+  private renderEntries(content: HTMLElement, entries: ClockifyTimeEntry[], extraClass?: string): void {
+    const list = content.createDiv({ cls: extraClass ? `clockify-entry-list ${extraClass}` : "clockify-entry-list" });
+    const sorted = [...entries].sort((a, b) => a.timeInterval.start.localeCompare(b.timeInterval.start));
     for (const entry of sorted) {
       const row = list.createDiv({ cls: "clockify-entry-row" });
       if (entry.id === this.selectedEntryId) row.addClass("is-selected");
@@ -218,7 +219,7 @@ export class ClockifyTrackerView extends ItemView {
         text: formatDuration(minutesBetween(entry.timeInterval.start, entry.timeInterval.end ?? new Date()))
       });
       duration.setAttr("aria-label", "Duration");
-      this.durationEls.set(entry.id, duration);
+      this.durationEls.set(entry.id, [...(this.durationEls.get(entry.id) ?? []), duration]);
 
       const actions = row.createDiv({ cls: "clockify-entry-actions" });
       actions.createEl("button", { text: "Save" }).addEventListener("click", async (event) => {
@@ -237,6 +238,30 @@ export class ClockifyTrackerView extends ItemView {
         event.stopPropagation();
         await this.deleteEntry(entry);
       });
+    }
+  }
+
+  private renderWeeklyTimeline(content: HTMLElement): void {
+    const timeline = content.createDiv({ cls: "clockify-week-timeline" });
+    const weekStart = startOfLocalWeek(new Date());
+    for (let index = 0; index < 7; index += 1) {
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + index);
+      const nextDay = new Date(day);
+      nextDay.setDate(day.getDate() + 1);
+      const entries = this.weekEntries.filter((entry) => {
+        const start = new Date(entry.timeInterval.start);
+        return start >= day && start < nextDay;
+      });
+      const section = timeline.createDiv({ cls: "clockify-day-section" });
+      const header = section.createDiv({ cls: "clockify-day-header" });
+      header.createDiv({ cls: "clockify-day-name", text: formatDayLabel(day) });
+      header.createDiv({ cls: "clockify-day-total", text: formatDuration(sumEntries(entries, new Date())) });
+      if (entries.length === 0) {
+        section.createDiv({ cls: "clockify-day-empty", text: "No entries" });
+      } else {
+        this.renderEntries(section, entries, "clockify-week-list");
+      }
     }
   }
 
@@ -372,9 +397,9 @@ export class ClockifyTrackerView extends ItemView {
     if (this.runningElapsedEl && running) {
       this.runningElapsedEl.setText(formatDuration(minutesBetween(running.timeInterval.start, now)));
     }
-    for (const entry of this.todayEntries) {
-      const durationEl = this.durationEls.get(entry.id);
-      if (durationEl) {
+    for (const entry of this.weekEntries) {
+      const durationEls = this.durationEls.get(entry.id) ?? [];
+      for (const durationEl of durationEls) {
         durationEl.setText(formatDuration(minutesBetween(entry.timeInterval.start, entry.timeInterval.end ?? now)));
       }
     }
@@ -388,6 +413,10 @@ function sumEntries(entries: ClockifyTimeEntry[], now: Date): number {
 function toLocalTime(value: string): string {
   const date = new Date(value);
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function formatDayLabel(date: Date): string {
+  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
 function mergeDateTime(anchorIso: string, time: string): Date {
