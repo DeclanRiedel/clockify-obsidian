@@ -288,11 +288,18 @@ export class ClockifyTrackerView extends ItemView {
 
   private async saveEntry(entry: ClockifyTimeEntry, patch: Partial<TimeEntryDraft>): Promise<void> {
     try {
-      await this.plugin.client.updateEntry(entry, patch);
-      await this.refresh();
+      const updated = await this.plugin.client.updateEntry(entry, patch);
+      this.replaceEntry(updated);
+      this.updateLiveStats();
+      await this.plugin.debugLog(`entry saved without refresh: ${updated.id}`);
     } catch (error) {
       new Notice(error instanceof Error ? error.message : "Could not update Clockify entry.");
     }
+  }
+
+  private replaceEntry(updated: ClockifyTimeEntry): void {
+    this.todayEntries = replaceById(this.todayEntries, updated);
+    this.weekEntries = replaceById(this.weekEntries, updated);
   }
 
   private async deleteEntry(entry: ClockifyTimeEntry): Promise<void> {
@@ -408,6 +415,10 @@ export class ClockifyTrackerView extends ItemView {
 
 function sumEntries(entries: ClockifyTimeEntry[], now: Date): number {
   return entries.reduce((total, entry) => total + minutesBetween(entry.timeInterval.start, entry.timeInterval.end ?? now), 0);
+}
+
+function replaceById(entries: ClockifyTimeEntry[], updated: ClockifyTimeEntry): ClockifyTimeEntry[] {
+  return entries.map((entry) => entry.id === updated.id ? updated : entry);
 }
 
 function toLocalTime(value: string): string {
