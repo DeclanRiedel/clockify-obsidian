@@ -70,7 +70,7 @@ export class ClockifySettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Workspace ID")
-      .setDesc("Use auto configure after adding an API key.")
+      .setDesc("Use sync after adding an API key.")
       .addText((text) => text
         .setValue(this.plugin.settings.workspaceId)
         .onChange(async (value) => {
@@ -78,8 +78,11 @@ export class ClockifySettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }))
       .addButton((button) => button
-        .setButtonText("Auto configure")
-        .onClick(() => this.plugin.autoConfigure()));
+        .setButtonText("Connect / refresh")
+        .onClick(async () => {
+          await this.plugin.autoConfigure();
+          this.display();
+        }));
 
     new Setting(containerEl)
       .setName("User ID")
@@ -93,13 +96,18 @@ export class ClockifySettingTab extends PluginSettingTab {
     containerEl.createEl("h3", { text: "Defaults" });
 
     new Setting(containerEl)
-      .setName("Default project ID")
-      .addText((text) => text
-        .setValue(this.plugin.settings.defaultProjectId)
+      .setName("Default project")
+      .addDropdown((dropdown) => {
+        dropdown.addOption("", "No default");
+        for (const project of this.plugin.metadata.projects) {
+          dropdown.addOption(project.id, project.clientName ? `${project.clientName} / ${project.name}` : project.name);
+        }
+        dropdown.setValue(this.plugin.settings.defaultProjectId)
         .onChange(async (value) => {
-          this.plugin.settings.defaultProjectId = value.trim();
+          this.plugin.settings.defaultProjectId = value;
           await this.plugin.saveSettings();
-        }));
+        });
+      });
 
     new Setting(containerEl)
       .setName("Default task ID")
@@ -135,14 +143,19 @@ export class ClockifySettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Overtime tag ID")
+      .setName("Overtime tag")
       .setDesc("Tag added to the continued timer. Project/task stay the same.")
-      .addText((text) => text
-        .setValue(this.plugin.settings.overtimeTagId)
+      .addDropdown((dropdown) => {
+        dropdown.addOption("", "No tag");
+        for (const tag of this.plugin.metadata.tags) {
+          dropdown.addOption(tag.id, tag.name);
+        }
+        dropdown.setValue(this.plugin.settings.overtimeTagId)
         .onChange(async (value) => {
-          this.plugin.settings.overtimeTagId = value.trim();
+          this.plugin.settings.overtimeTagId = value;
           await this.plugin.saveSettings();
-        }));
+        });
+      });
 
     new Setting(containerEl)
       .setName("Prompt before switching")

@@ -14,6 +14,7 @@ export interface ClockifySettings {
   overtimeTagId: string;
   overtimeCheckSeconds: number;
   promptBeforeOvertime: boolean;
+  debugLogging: boolean;
 }
 
 export interface ClockifyUser {

@@ -13,5 +13,6 @@ export const DEFAULT_SETTINGS: ClockifySettings = {
   overtimeStartTime: "17:00",
   overtimeTagId: "",
   overtimeCheckSeconds: 60,
-  promptBeforeOvertime: false
+  promptBeforeOvertime: false,
+  debugLogging: false
 };

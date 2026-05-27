@@ -59,6 +59,11 @@ export class ClockifyTrackerView extends ItemView {
       const now = new Date();
       this.todayEntries = await this.plugin.client.getEntries(startOfLocalDay(now), new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
       this.weekEntries = await this.plugin.client.getEntries(startOfLocalWeek(now), new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+      try {
+        await this.plugin.ensureMetadata();
+      } catch (error) {
+        await this.plugin.debugLog(`metadata lazy load failed: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
       this.renderTracker(content);
       await this.plugin.debugLog(`entries refreshed: ${this.todayEntries.length} today, ${this.weekEntries.length} week`);
     } catch (error) {
@@ -74,8 +79,8 @@ export class ClockifyTrackerView extends ItemView {
     const actions = header.createDiv({ cls: "clockify-header-actions" });
     actions.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Refresh" }, text: "Refresh" })
       .addEventListener("click", () => this.refresh());
-    actions.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Metadata" }, text: "Metadata" })
-      .addEventListener("click", () => this.plugin.refreshMetadata(true));
+    actions.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Sync" }, text: "Sync" })
+      .addEventListener("click", () => this.plugin.autoConfigure());
     this.contentEl.createDiv({ cls: "clockify-content" });
   }
 
@@ -130,16 +135,13 @@ export class ClockifyTrackerView extends ItemView {
     } else {
       runningBody.createDiv({ cls: "clockify-running-desc-text", text: "Start from quick add below." });
     }
-    timer.createEl("button", { text: running ? "Stop" : "Start empty" }).addEventListener("click", async () => {
-      if (running) {
+    if (running) {
+      timer.createEl("button", { text: "Stop" }).addEventListener("click", async () => {
         await this.plugin.stopTimer();
-      } else {
-        await this.plugin.startTimer(this.makeDraft({ description: "", start: new Date(), tagIds: [], billable: false }));
-      }
-    });
+      });
+    }
 
     this.renderQuickAdd(content);
-    this.renderEntries(content, this.todayEntries, "clockify-today-list");
     const footer = content.createDiv({ cls: "clockify-footer-total" });
     this.weekTotalEl = this.renderStat(footer, "Week total", formatDuration(sumEntries(this.weekEntries, now)));
     this.renderWeeklyTimeline(content);
@@ -206,7 +208,7 @@ export class ClockifyTrackerView extends ItemView {
       const taskSelect = this.createTaskSelect(meta, projectSelect.value, entry.taskId ?? "");
       projectSelect.addEventListener("change", async () => {
         taskSelect.empty();
-        await this.fillTaskSelect(taskSelect, projectSelect.value, "");
+        await this.fillTaskSelect(taskSelect, projectSelect.value, "", true);
       });
       const tagSelect = this.createTagSelect(meta, entry.tagIds ?? []);
       const billable = meta.createEl("label", { cls: "clockify-billable" });
@@ -251,7 +253,7 @@ export class ClockifyTrackerView extends ItemView {
       nextDay.setDate(day.getDate() + 1);
       const entries = this.weekEntries.filter((entry) => {
         const start = new Date(entry.timeInterval.start);
-        return start >= day && start < nextDay;
+        return Boolean(entry.timeInterval.end) && start >= day && start < nextDay;
       });
       const section = timeline.createDiv({ cls: "clockify-day-section" });
       const header = section.createDiv({ cls: "clockify-day-header" });
@@ -351,13 +353,24 @@ export class ClockifyTrackerView extends ItemView {
 
   private createTaskSelect(parent: HTMLElement, projectId: string, value: string): HTMLSelectElement {
     const select = parent.createEl("select", { cls: "clockify-task-select" });
-    void this.fillTaskSelect(select, projectId, value);
+    void this.fillTaskSelect(select, projectId, value, false);
+    select.addEventListener("focus", () => {
+      if (projectId && !this.plugin.metadata.tasksByProject[projectId]) {
+        select.empty();
+        void this.fillTaskSelect(select, projectId, value, true);
+      }
+    }, { once: true });
     return select;
   }
 
-  private async fillTaskSelect(select: HTMLSelectElement, projectId: string, value: string): Promise<void> {
+  private async fillTaskSelect(select: HTMLSelectElement, projectId: string, value: string, load: boolean): Promise<void> {
     select.createEl("option", { value: "", text: "No task" });
-    if (projectId && !this.plugin.metadata.tasksByProject[projectId]) {
+    if (projectId && !this.plugin.metadata.tasksByProject[projectId] && !load) {
+      if (value) select.createEl("option", { value, text: "Task set" });
+      select.value = value;
+      return;
+    }
+    if (projectId && !this.plugin.metadata.tasksByProject[projectId] && load) {
       select.createEl("option", { value: "", text: "Loading tasks..." });
       try {
         this.plugin.metadata.tasksByProject[projectId] = await this.plugin.client.getTasks(projectId);

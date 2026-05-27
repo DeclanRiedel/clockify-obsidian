@@ -52,8 +52,8 @@ export default class ClockifyObsidianPlugin extends Plugin {
 
     this.addCommand({
       id: "refresh-clockify-metadata",
-      name: "Refresh projects, tasks, and tags",
-      callback: () => this.refreshMetadata(true)
+      name: "Connect / refresh metadata",
+      callback: () => this.autoConfigure()
     });
 
     this.addCommand({
@@ -120,22 +120,27 @@ export default class ClockifyObsidianPlugin extends Plugin {
 
   async refreshMetadata(showNotice: boolean): Promise<void> {
     try {
-      const projects = await this.client.getProjects();
-      const tags = await this.client.getTags();
-      this.metadata = {
-        projects,
-        tags,
-        tasksByProject: this.metadata.tasksByProject ?? {},
-        fetchedAt: new Date().toISOString()
-      };
-      await this.saveSettings();
+      await this.ensureMetadata(true);
       this.refreshOpenViews();
       if (showNotice) new Notice("Clockify metadata refreshed.");
-      await this.debugLog(`metadata refreshed: ${projects.length} projects, ${tags.length} tags`);
+      await this.debugLog(`metadata refreshed: ${this.metadata.projects.length} projects, ${this.metadata.tags.length} tags`);
     } catch (error) {
       await this.debugLog(`metadata failed: ${error instanceof Error ? error.message : "unknown error"}`);
       new Notice(error instanceof Error ? error.message : "Clockify metadata refresh failed.");
     }
+  }
+
+  async ensureMetadata(force = false): Promise<void> {
+    if (!force && this.metadata.projects.length > 0 && this.metadata.tags.length > 0) return;
+    const projects = await this.client.getProjects();
+    const tags = await this.client.getTags();
+    this.metadata = {
+      projects,
+      tags,
+      tasksByProject: this.metadata.tasksByProject ?? {},
+      fetchedAt: new Date().toISOString()
+    };
+    await this.saveSettings();
   }
 
   async startTimer(draft: Omit<TimeEntryDraft, "end">): Promise<void> {
@@ -239,6 +244,7 @@ export default class ClockifyObsidianPlugin extends Plugin {
   }
 
   async debugLog(message: string): Promise<void> {
+    if (!this.settings.debugLogging) return;
     const path = normalizePath(`${this.manifest.dir ?? ".obsidian/plugins/clockify-obsidian"}/debug.log`);
     const line = `${new Date().toISOString()} ${message}\n`;
     try {
