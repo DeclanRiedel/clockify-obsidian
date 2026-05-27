@@ -29,12 +29,13 @@ export default class ClockifyObsidianPlugin extends Plugin {
       (leaf) => new ClockifyTrackerView(leaf, this)
     );
 
-    this.addRibbonIcon("clock", "Clockify Tracker", () => this.activateView());
+    this.addRibbonIcon("clock", "Clockify Tracker", () => this.toggleView());
 
     this.addCommand({
-      id: "open-clockify-tracker",
-      name: "Open tracker",
-      callback: () => this.activateView()
+      id: "toggle-clockify-tracker",
+      name: "Toggle tracker",
+      hotkeys: [{ modifiers: ["Mod", "Shift"], key: "c" }],
+      callback: () => this.toggleView()
     });
 
     this.addCommand({
@@ -91,6 +92,16 @@ export default class ClockifyObsidianPlugin extends Plugin {
     }
     if (leaf) workspace.revealLeaf(leaf);
     await this.debugLog("view activated");
+  }
+
+  async toggleView(): Promise<void> {
+    const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOCKIFY_TRACKER)[0];
+    if (leaf) {
+      await leaf.detach();
+      await this.debugLog("view closed");
+      return;
+    }
+    await this.activateView();
   }
 
   async autoConfigure(): Promise<void> {
