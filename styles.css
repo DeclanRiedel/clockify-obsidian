@@ -42,7 +42,7 @@
 .clockify-summary {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 10px;
 }
 
@@ -85,10 +85,33 @@
   font-weight: 700;
 }
 
-.clockify-running-desc {
+.clockify-running-body {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 58px 42px;
+}
+
+.clockify-running-desc,
+.clockify-running-time {
+  border: 1px solid var(--clockify-border);
+  border-radius: 6px;
+  font-size: 12px;
+  height: 28px;
+  min-width: 0;
+}
+
+.clockify-running-desc-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.clockify-running-elapsed {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .clockify-quick-add {
@@ -184,6 +207,22 @@
   gap: 4px;
 }
 
+.clockify-footer-total {
+  border-top: 1px solid var(--clockify-border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.clockify-footer-total .clockify-stat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.clockify-footer-total .clockify-stat-label,
+.clockify-footer-total .clockify-stat-value {
+  align-self: center;
+}
+
 .clockify-error,
 .clockify-setup {
   background: var(--background-secondary);
@@ -205,5 +244,12 @@
   .clockify-entry-meta {
     grid-template-columns: 1fr;
   }
-}
 
+  .clockify-running {
+    grid-template-columns: 1fr;
+  }
+
+  .clockify-running-body {
+    grid-template-columns: minmax(0, 1fr) 58px 42px;
+  }
+}

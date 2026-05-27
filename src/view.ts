@@ -9,6 +9,12 @@ export class ClockifyTrackerView extends ItemView {
   private selectedEntryId: string | null = null;
   private todayEntries: ClockifyTimeEntry[] = [];
   private weekEntries: ClockifyTimeEntry[] = [];
+  private liveInterval: number | null = null;
+  private todayTotalEl: HTMLElement | null = null;
+  private overtimeEl: HTMLElement | null = null;
+  private weekTotalEl: HTMLElement | null = null;
+  private runningElapsedEl: HTMLElement | null = null;
+  private durationEls = new Map<string, HTMLElement>();
 
   constructor(leaf: WorkspaceLeaf, private readonly plugin: ClockifyObsidianPlugin) {
     super(leaf);
@@ -33,7 +39,12 @@ export class ClockifyTrackerView extends ItemView {
     await this.refresh();
   }
 
+  async onClose(): Promise<void> {
+    this.stopLiveUpdates();
+  }
+
   async refresh(): Promise<void> {
+    this.stopLiveUpdates();
     const content = this.contentEl.querySelector(".clockify-content");
     if (!(content instanceof HTMLElement)) return;
     content.empty();
@@ -84,17 +95,41 @@ export class ClockifyTrackerView extends ItemView {
     const now = new Date();
     const running = this.todayEntries.find((entry) => !entry.timeInterval.end) ?? null;
     const todayTotal = sumEntries(this.todayEntries, now);
-    const weekTotal = sumEntries(this.weekEntries, now);
     const overtimeRemaining = Math.max(0, this.plugin.settings.dailyLimitMinutes - todayTotal);
 
     const summary = content.createDiv({ cls: "clockify-summary" });
-    this.renderStat(summary, "Today", formatDuration(todayTotal));
-    this.renderStat(summary, "Week", formatDuration(weekTotal));
-    this.renderStat(summary, "OT in", this.plugin.settings.overtimeEnabled ? formatDuration(overtimeRemaining) : "off");
+    this.todayTotalEl = this.renderStat(summary, "Today", formatDuration(todayTotal));
+    this.overtimeEl = this.renderStat(summary, "OT in", this.plugin.settings.overtimeEnabled ? formatDuration(overtimeRemaining) : "off");
 
     const timer = content.createDiv({ cls: running ? "clockify-running is-active" : "clockify-running" });
     timer.createDiv({ cls: "clockify-running-label", text: running ? "Running" : "No timer running" });
-    timer.createDiv({ cls: "clockify-running-desc", text: running ? running.description || "(no description)" : "Start from quick add below." });
+    const runningBody = timer.createDiv({ cls: "clockify-running-body" });
+    if (running) {
+      const runningDesc = runningBody.createEl("input", {
+        cls: "clockify-running-desc",
+        value: running.description || "",
+        attr: { placeholder: "Description" }
+      });
+      const runningStart = runningBody.createEl("input", {
+        cls: "clockify-running-time",
+        value: toLocalTime(running.timeInterval.start),
+        attr: { "aria-label": "Running start time" }
+      });
+      this.runningElapsedEl = runningBody.createDiv({
+        cls: "clockify-running-elapsed",
+        text: formatDuration(minutesBetween(running.timeInterval.start, now))
+      });
+      runningDesc.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") void this.saveEntry(running, { description: runningDesc.value, start: mergeDateTime(running.timeInterval.start, runningStart.value) });
+      });
+      runningStart.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") void this.saveEntry(running, { description: runningDesc.value, start: mergeDateTime(running.timeInterval.start, runningStart.value) });
+      });
+      runningDesc.addEventListener("blur", () => void this.saveEntry(running, { description: runningDesc.value, start: mergeDateTime(running.timeInterval.start, runningStart.value) }));
+      runningStart.addEventListener("blur", () => void this.saveEntry(running, { description: runningDesc.value, start: mergeDateTime(running.timeInterval.start, runningStart.value) }));
+    } else {
+      runningBody.createDiv({ cls: "clockify-running-desc-text", text: "Start from quick add below." });
+    }
     timer.createEl("button", { text: running ? "Stop" : "Start empty" }).addEventListener("click", async () => {
       if (running) {
         await this.plugin.stopTimer();
@@ -105,6 +140,9 @@ export class ClockifyTrackerView extends ItemView {
 
     this.renderQuickAdd(content);
     this.renderEntries(content);
+    const footer = content.createDiv({ cls: "clockify-footer-total" });
+    this.weekTotalEl = this.renderStat(footer, "Week total", formatDuration(sumEntries(this.weekEntries, now)));
+    this.startLiveUpdates();
   }
 
   private renderQuickAdd(content: HTMLElement): void {
@@ -146,10 +184,10 @@ export class ClockifyTrackerView extends ItemView {
     for (const entry of sorted) {
       const row = list.createDiv({ cls: "clockify-entry-row" });
       if (entry.id === this.selectedEntryId) row.addClass("is-selected");
-      row.addEventListener("click", () => {
+      row.addEventListener("focusin", () => {
         this.selectedEntryId = entry.id;
-        this.renderShell();
-        void this.refresh();
+        list.querySelectorAll(".is-selected").forEach((selected) => selected.classList.remove("is-selected"));
+        row.addClass("is-selected");
       });
       row.addEventListener("contextmenu", (event) => {
         event.preventDefault();
@@ -180,6 +218,7 @@ export class ClockifyTrackerView extends ItemView {
         text: formatDuration(minutesBetween(entry.timeInterval.start, entry.timeInterval.end ?? new Date()))
       });
       duration.setAttr("aria-label", "Duration");
+      this.durationEls.set(entry.id, duration);
 
       const actions = row.createDiv({ cls: "clockify-entry-actions" });
       actions.createEl("button", { text: "Save" }).addEventListener("click", async (event) => {
@@ -201,10 +240,10 @@ export class ClockifyTrackerView extends ItemView {
     }
   }
 
-  private renderStat(parent: HTMLElement, label: string, value: string): void {
+  private renderStat(parent: HTMLElement, label: string, value: string): HTMLElement {
     const stat = parent.createDiv({ cls: "clockify-stat" });
     stat.createDiv({ cls: "clockify-stat-label", text: label });
-    stat.createDiv({ cls: "clockify-stat-value", text: value });
+    return stat.createDiv({ cls: "clockify-stat-value", text: value });
   }
 
   private makeDraft(draft: Omit<TimeEntryDraft, "projectId" | "taskId"> & { projectId?: string; taskId?: string }): Omit<TimeEntryDraft, "end"> {
@@ -299,6 +338,46 @@ export class ClockifyTrackerView extends ItemView {
       option.selected = values.includes(tag.id);
     }
     return select;
+  }
+
+  private startLiveUpdates(): void {
+    this.updateLiveStats();
+    this.liveInterval = window.setInterval(() => this.updateLiveStats(), 1000);
+  }
+
+  private stopLiveUpdates(): void {
+    if (this.liveInterval !== null) {
+      window.clearInterval(this.liveInterval);
+      this.liveInterval = null;
+    }
+    this.todayTotalEl = null;
+    this.overtimeEl = null;
+    this.weekTotalEl = null;
+    this.runningElapsedEl = null;
+    this.durationEls.clear();
+  }
+
+  private updateLiveStats(): void {
+    const now = new Date();
+    const todayTotal = sumEntries(this.todayEntries, now);
+    const weekTotal = sumEntries(this.weekEntries, now);
+    if (this.todayTotalEl) this.todayTotalEl.setText(formatDuration(todayTotal));
+    if (this.weekTotalEl) this.weekTotalEl.setText(formatDuration(weekTotal));
+    if (this.overtimeEl) {
+      this.overtimeEl.setText(this.plugin.settings.overtimeEnabled
+        ? formatDuration(Math.max(0, this.plugin.settings.dailyLimitMinutes - todayTotal))
+        : "off");
+    }
+    const running = this.todayEntries.find((entry) => !entry.timeInterval.end) ?? null;
+    if (this.runningElapsedEl && running) {
+      this.runningElapsedEl.setText(formatDuration(minutesBetween(running.timeInterval.start, now)));
+    }
+    for (const entry of this.todayEntries) {
+      const durationEl = this.durationEls.get(entry.id);
+      if (durationEl) {
+        durationEl.setText(formatDuration(minutesBetween(entry.timeInterval.start, entry.timeInterval.end ?? now)));
+      }
+    }
   }
 }
 
