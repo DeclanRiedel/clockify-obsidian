@@ -1,4 +1,209 @@
 .clockify-tracker {
+  --clockify-border: var(--background-modifier-border);
+  --clockify-row: var(--background-primary);
+  --clockify-row-alt: var(--background-secondary);
+  --clockify-accent: var(--interactive-accent);
   color: var(--text-normal);
+}
+
+.clockify-header {
+  align-items: center;
+  border-bottom: 1px solid var(--clockify-border);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.clockify-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.clockify-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.clockify-header button,
+.clockify-entry-row button,
+.clockify-quick-add button,
+.clockify-running button {
+  border-radius: 6px;
+  font-size: 12px;
+  height: 28px;
+  padding: 0 8px;
+}
+
+.clockify-content {
+  padding: 10px;
+}
+
+.clockify-summary {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+
+.clockify-stat {
+  background: var(--background-secondary);
+  border: 1px solid var(--clockify-border);
+  border-radius: 6px;
+  padding: 7px 8px;
+}
+
+.clockify-stat-label {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.clockify-stat-value {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.clockify-running {
+  align-items: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--clockify-border);
+  border-radius: 6px;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin-bottom: 10px;
+  padding: 8px;
+}
+
+.clockify-running.is-active {
+  border-color: var(--clockify-accent);
+}
+
+.clockify-running-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.clockify-running-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clockify-quick-add {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 10px;
+}
+
+.clockify-quick-add input,
+.clockify-entry-row input,
+.clockify-entry-row select {
+  border: 1px solid var(--clockify-border);
+  border-radius: 6px;
+  font-size: 12px;
+  height: 28px;
+  min-width: 0;
+}
+
+.clockify-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clockify-entry-row {
+  align-items: start;
+  background: var(--clockify-row);
+  border: 1px solid var(--clockify-border);
+  border-radius: 6px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 74px minmax(0, 1fr) 48px auto;
+  padding: 8px;
+}
+
+.clockify-entry-row.is-selected {
+  border-color: var(--clockify-accent);
+}
+
+.clockify-entry-time {
+  display: grid;
+  gap: 4px;
+}
+
+.clockify-entry-time input {
+  text-align: center;
+}
+
+.clockify-entry-main {
+  display: grid;
+  gap: 5px;
+}
+
+.clockify-description {
+  width: 100%;
+}
+
+.clockify-entry-meta {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: minmax(80px, 1fr) minmax(70px, 1fr) minmax(70px, 0.8fr) auto;
+}
+
+.clockify-tag-select {
+  min-height: 28px;
+}
+
+.clockify-billable {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.clockify-billable input {
+  height: 14px;
+  width: 14px;
+}
+
+.clockify-entry-duration {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  padding-top: 6px;
+  text-align: right;
+}
+
+.clockify-entry-actions {
+  display: grid;
+  gap: 4px;
+}
+
+.clockify-error,
+.clockify-setup {
+  background: var(--background-secondary);
+  border: 1px solid var(--clockify-border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+@media (max-width: 520px) {
+  .clockify-entry-row {
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+
+  .clockify-entry-duration,
+  .clockify-entry-actions {
+    grid-column: 2;
+  }
+
+  .clockify-entry-meta {
+    grid-template-columns: 1fr;
+  }
 }
 
