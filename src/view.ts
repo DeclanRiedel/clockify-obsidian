@@ -28,6 +28,7 @@ export class ClockifyTrackerView extends ItemView {
 
   async onOpen(): Promise<void> {
     this.containerEl.addClass("clockify-tracker");
+    await this.plugin.debugLog("view opened");
     this.renderShell();
     await this.refresh();
   }
@@ -47,7 +48,9 @@ export class ClockifyTrackerView extends ItemView {
       this.todayEntries = await this.plugin.client.getEntries(startOfLocalDay(now), new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
       this.weekEntries = await this.plugin.client.getEntries(startOfLocalWeek(now), new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
       this.renderTracker(content);
+      await this.plugin.debugLog(`entries refreshed: ${this.todayEntries.length} today, ${this.weekEntries.length} week`);
     } catch (error) {
+      await this.plugin.debugLog(`entries failed: ${error instanceof Error ? error.message : "unknown error"}`);
       content.createDiv({ cls: "clockify-error", text: error instanceof Error ? error.message : "Failed to load Clockify entries." });
     }
   }
@@ -332,4 +335,3 @@ function resolveTask(tasks: ClockifyTask[], value?: string): string | undefined 
 function resolveTag(tags: ClockifyTag[], value: string): string {
   return tags.find((tag) => tag.id === value || tag.name.toLowerCase() === value.toLowerCase())?.id ?? value;
 }
-

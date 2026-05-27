@@ -1,4 +1,4 @@
-import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
+import { normalizePath, Notice, Plugin, WorkspaceLeaf } from "obsidian";
 import { ClockifyClient } from "./clockifyClient";
 import { DEFAULT_SETTINGS } from "./defaults";
 import { applyOvertimeMarker, decideOvertimeSwitch } from "./overtime";
@@ -21,6 +21,7 @@ export default class ClockifyObsidianPlugin extends Plugin {
   async onload(): Promise<void> {
     console.log("Clockify Tracker loading");
     await this.loadSettings();
+    await this.debugLog("loading");
     this.addSettingTab(new ClockifySettingTab(this.app, this));
 
     this.registerView(
@@ -62,11 +63,13 @@ export default class ClockifyObsidianPlugin extends Plugin {
 
     this.restartOvertimeWatcher();
     console.log("Clockify Tracker loaded");
+    await this.debugLog("loaded");
   }
 
   onunload(): void {
     if (this.overtimeInterval !== null) window.clearInterval(this.overtimeInterval);
     console.log("Clockify Tracker unloaded");
+    void this.debugLog("unloaded");
   }
 
   async loadSettings(): Promise<void> {
@@ -87,6 +90,7 @@ export default class ClockifyObsidianPlugin extends Plugin {
       await leaf?.setViewState({ type: VIEW_TYPE_CLOCKIFY_TRACKER, active: true });
     }
     if (leaf) workspace.revealLeaf(leaf);
+    await this.debugLog("view activated");
   }
 
   async autoConfigure(): Promise<void> {
@@ -115,7 +119,9 @@ export default class ClockifyObsidianPlugin extends Plugin {
       await this.saveSettings();
       this.refreshOpenViews();
       if (showNotice) new Notice("Clockify metadata refreshed.");
+      await this.debugLog(`metadata refreshed: ${projects.length} projects, ${tags.length} tags`);
     } catch (error) {
+      await this.debugLog(`metadata failed: ${error instanceof Error ? error.message : "unknown error"}`);
       new Notice(error instanceof Error ? error.message : "Clockify metadata refresh failed.");
     }
   }
@@ -220,6 +226,19 @@ export default class ClockifyObsidianPlugin extends Plugin {
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOCKIFY_TRACKER)) {
       const view = leaf.view;
       if (view instanceof ClockifyTrackerView) void view.refresh();
+    }
+  }
+
+  async debugLog(message: string): Promise<void> {
+    const path = normalizePath(`${this.manifest.dir ?? ".obsidian/plugins/clockify-obsidian"}/debug.log`);
+    const line = `${new Date().toISOString()} ${message}\n`;
+    try {
+      const existing = await this.app.vault.adapter.exists(path)
+        ? await this.app.vault.adapter.read(path)
+        : "";
+      await this.app.vault.adapter.write(path, existing + line);
+    } catch (error) {
+      console.error("Clockify debug log failed", error);
     }
   }
 }
