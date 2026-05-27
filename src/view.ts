@@ -1,5 +1,6 @@
 import { ItemView, Menu, Notice, WorkspaceLeaf } from "obsidian";
 import ClockifyObsidianPlugin from "./main";
+import { isAtOrAfterOvertimeStart } from "./overtime";
 import { ClockifyProject, ClockifyTag, ClockifyTask, ClockifyTimeEntry, TimeEntryDraft } from "./types";
 import { formatDuration, minutesBetween, parseQuickEntry, startOfLocalDay, startOfLocalWeek } from "./timeParser";
 
@@ -95,11 +96,10 @@ export class ClockifyTrackerView extends ItemView {
     const now = new Date();
     const running = this.todayEntries.find((entry) => !entry.timeInterval.end) ?? null;
     const todayTotal = sumEntries(this.todayEntries, now);
-    const overtimeRemaining = Math.max(0, this.plugin.settings.dailyLimitMinutes - todayTotal);
 
     const summary = content.createDiv({ cls: "clockify-summary" });
     this.todayTotalEl = this.renderStat(summary, "Today", formatDuration(todayTotal));
-    this.overtimeEl = this.renderStat(summary, "OT in", this.plugin.settings.overtimeEnabled ? formatDuration(overtimeRemaining) : "off");
+    this.overtimeEl = this.renderStat(summary, "Overtime", this.overtimeStatusText(now));
 
     const timer = content.createDiv({ cls: running ? "clockify-running is-active" : "clockify-running" });
     timer.createDiv({ cls: "clockify-running-label", text: running ? "Running" : "No timer running" });
@@ -407,9 +407,7 @@ export class ClockifyTrackerView extends ItemView {
     if (this.todayTotalEl) this.todayTotalEl.setText(formatDuration(todayTotal));
     if (this.weekTotalEl) this.weekTotalEl.setText(formatDuration(weekTotal));
     if (this.overtimeEl) {
-      this.overtimeEl.setText(this.plugin.settings.overtimeEnabled
-        ? formatDuration(Math.max(0, this.plugin.settings.dailyLimitMinutes - todayTotal))
-        : "off");
+      this.overtimeEl.setText(this.overtimeStatusText(now));
     }
     const running = this.todayEntries.find((entry) => !entry.timeInterval.end) ?? null;
     if (this.runningElapsedEl && running) {
@@ -421,6 +419,13 @@ export class ClockifyTrackerView extends ItemView {
         durationEl.setText(formatDuration(minutesBetween(entry.timeInterval.start, entry.timeInterval.end ?? now)));
       }
     }
+  }
+
+  private overtimeStatusText(now: Date): string {
+    if (!this.plugin.settings.overtimeEnabled) return "off";
+    return isAtOrAfterOvertimeStart(this.plugin.settings.overtimeStartTime, now)
+      ? "now"
+      : this.plugin.settings.overtimeStartTime;
   }
 }
 

@@ -10,12 +10,8 @@ export const DEFAULT_SETTINGS: ClockifySettings = {
   defaultTaskId: "",
   defaultTagIds: [],
   overtimeEnabled: false,
-  overtimeMode: "tag",
+  overtimeStartTime: "17:00",
   overtimeTagId: "",
-  overtimeProjectId: "",
-  overtimeTaskId: "",
-  dailyLimitMinutes: 480,
-  weeklyLimitMinutes: 2400,
   overtimeCheckSeconds: 60,
   promptBeforeOvertime: false
 };

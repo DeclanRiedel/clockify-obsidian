@@ -5,7 +5,7 @@ import { applyOvertimeMarker, decideOvertimeSwitch } from "./overtime";
 import { ClockifySettingTab } from "./settings";
 import { ClockifyTrackerView, VIEW_TYPE_CLOCKIFY_TRACKER } from "./view";
 import { ClockifySettings, MetadataCache, TimeEntryDraft } from "./types";
-import { startOfLocalDay, startOfLocalWeek } from "./timeParser";
+import { startOfLocalDay } from "./timeParser";
 
 interface PluginData {
   settings: ClockifySettings;
@@ -188,18 +188,15 @@ export default class ClockifyObsidianPlugin extends Plugin {
     try {
       const now = new Date();
       const dayEntries = await this.client.getEntries(startOfLocalDay(now), now);
-      const weekEntries = await this.client.getEntries(startOfLocalWeek(now), now);
       const runningEntry = dayEntries.find((entry) => !entry.timeInterval.end) ?? null;
       const decision = decideOvertimeSwitch({
         settings: this.settings,
         runningEntry,
-        dayEntries,
-        weekEntries,
         now
       });
       if (!decision.shouldSwitch || !runningEntry) return;
       if (this.settings.promptBeforeOvertime) {
-        new Notice(`Clockify overtime threshold reached (${decision.reason}). Use command if manual switch preferred.`);
+        new Notice(`Clockify overtime time reached (${this.settings.overtimeStartTime}). Use command if manual switch preferred.`);
         return;
       }
       await this.client.stopTimer();
@@ -212,7 +209,7 @@ export default class ClockifyObsidianPlugin extends Plugin {
         billable: decision.overtimeEntry.billable ?? runningEntry.billable ?? false
       });
       this.refreshOpenViews();
-      new Notice(`Clockify switched to overtime (${decision.reason}).`);
+      new Notice("Clockify continued current timer with overtime tag.");
     } catch (error) {
       console.error("Clockify overtime handoff failed", error);
     }

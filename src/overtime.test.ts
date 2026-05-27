@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "./defaults";
-import { decideOvertimeSwitch } from "./overtime";
+import { decideOvertimeSwitch, isAtOrAfterOvertimeStart } from "./overtime";
 import { ClockifyTimeEntry } from "./types";
 
 const baseEntry: ClockifyTimeEntry = {
@@ -17,23 +17,36 @@ const baseEntry: ClockifyTimeEntry = {
 };
 
 describe("decideOvertimeSwitch", () => {
-  it("adds overtime tag after daily limit", () => {
+  it("adds overtime tag after configured start time", () => {
     const decision = decideOvertimeSwitch({
       settings: {
         ...DEFAULT_SETTINGS,
         overtimeEnabled: true,
-        dailyLimitMinutes: 60,
-        weeklyLimitMinutes: 2400,
+        overtimeStartTime: "17:00",
         overtimeTagId: "ot"
       },
       runningEntry: baseEntry,
-      dayEntries: [baseEntry],
-      weekEntries: [baseEntry],
-      now: new Date("2026-05-27T09:01:00.000Z")
+      now: new Date(2026, 4, 27, 17, 1, 0)
     });
     expect(decision.shouldSwitch).toBe(true);
-    expect(decision.reason).toBe("daily");
+    expect(decision.reason).toBe("time");
+    expect(decision.overtimeEntry.projectId).toBe("p1");
+    expect(decision.overtimeEntry.taskId).toBe("t1");
     expect(decision.overtimeEntry.tagIds).toEqual(["ot"]);
+  });
+
+  it("does not switch before configured start time", () => {
+    const decision = decideOvertimeSwitch({
+      settings: {
+        ...DEFAULT_SETTINGS,
+        overtimeEnabled: true,
+        overtimeStartTime: "17:00",
+        overtimeTagId: "ot"
+      },
+      runningEntry: baseEntry,
+      now: new Date(2026, 4, 27, 16, 59, 0)
+    });
+    expect(decision.shouldSwitch).toBe(false);
   });
 
   it("does not re-switch overtime entry", () => {
@@ -41,14 +54,17 @@ describe("decideOvertimeSwitch", () => {
       settings: {
         ...DEFAULT_SETTINGS,
         overtimeEnabled: true,
-        dailyLimitMinutes: 60,
+        overtimeStartTime: "17:00",
         overtimeTagId: "ot"
       },
       runningEntry: { ...baseEntry, tagIds: ["ot"] },
-      dayEntries: [{ ...baseEntry, tagIds: ["ot"] }],
-      weekEntries: [{ ...baseEntry, tagIds: ["ot"] }],
-      now: new Date("2026-05-27T09:30:00.000Z")
+      now: new Date(2026, 4, 27, 17, 30, 0)
     });
     expect(decision.shouldSwitch).toBe(false);
+  });
+
+  it("checks local wall-clock time", () => {
+    expect(isAtOrAfterOvertimeStart("17:00", new Date(2026, 4, 27, 17, 0, 0))).toBe(true);
+    expect(isAtOrAfterOvertimeStart("17:00", new Date(2026, 4, 27, 16, 59, 0))).toBe(false);
   });
 });

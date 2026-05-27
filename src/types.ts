@@ -10,12 +10,8 @@ export interface ClockifySettings {
   defaultTaskId: string;
   defaultTagIds: string[];
   overtimeEnabled: boolean;
-  overtimeMode: "tag" | "project" | "task";
+  overtimeStartTime: string;
   overtimeTagId: string;
-  overtimeProjectId: string;
-  overtimeTaskId: string;
-  dailyLimitMinutes: number;
-  weeklyLimitMinutes: number;
   overtimeCheckSeconds: number;
   promptBeforeOvertime: boolean;
 }
@@ -89,4 +85,3 @@ export interface MetadataCache {
   tags: ClockifyTag[];
   fetchedAt?: string;
 }
-

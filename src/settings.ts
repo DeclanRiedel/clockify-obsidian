@@ -28,13 +28,16 @@ export class ClockifySettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("API key")
       .setDesc("Clockify API key from profile settings.")
-      .addText((text) => text
-        .setPlaceholder("X-Api-Key")
-        .setValue(this.plugin.settings.apiKey)
-        .onChange(async (value) => {
-          this.plugin.settings.apiKey = value.trim();
-          await this.plugin.saveSettings();
-        }));
+      .addText((text) => {
+        text.inputEl.type = "password";
+        text
+          .setPlaceholder("X-Api-Key")
+          .setValue(this.plugin.settings.apiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.apiKey = value.trim();
+            await this.plugin.saveSettings();
+          });
+      });
 
     new Setting(containerEl)
       .setName("Region")
@@ -111,7 +114,7 @@ export class ClockifySettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Enable overtime handoff")
-      .setDesc("When threshold is reached, stop current timer and start an overtime-coded timer.")
+      .setDesc("At the configured time, stop current timer and continue it with the overtime tag.")
       .addToggle((toggle) => toggle
         .setValue(this.plugin.settings.overtimeEnabled)
         .onChange(async (value) => {
@@ -121,34 +124,23 @@ export class ClockifySettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Daily limit")
-      .setDesc("Minutes before overtime starts.")
+      .setName("Overtime start time")
+      .setDesc("Local time when overtime starts, e.g. 17:00.")
       .addText((text) => text
-        .setValue(String(this.plugin.settings.dailyLimitMinutes))
+        .setPlaceholder("17:00")
+        .setValue(this.plugin.settings.overtimeStartTime)
         .onChange(async (value) => {
-          this.plugin.settings.dailyLimitMinutes = Math.max(1, Number.parseInt(value, 10) || 480);
+          this.plugin.settings.overtimeStartTime = normalizeTimeInput(value, this.plugin.settings.overtimeStartTime);
           await this.plugin.saveSettings();
         }));
 
     new Setting(containerEl)
-      .setName("Weekly limit")
-      .setDesc("Minutes before overtime starts.")
+      .setName("Overtime tag ID")
+      .setDesc("Tag added to the continued timer. Project/task stay the same.")
       .addText((text) => text
-        .setValue(String(this.plugin.settings.weeklyLimitMinutes))
+        .setValue(this.plugin.settings.overtimeTagId)
         .onChange(async (value) => {
-          this.plugin.settings.weeklyLimitMinutes = Math.max(1, Number.parseInt(value, 10) || 2400);
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName("Overtime mode")
-      .addDropdown((dropdown) => dropdown
-        .addOption("tag", "Add tag")
-        .addOption("project", "Switch project")
-        .addOption("task", "Switch task")
-        .setValue(this.plugin.settings.overtimeMode)
-        .onChange(async (value) => {
-          this.plugin.settings.overtimeMode = value as ClockifySettings["overtimeMode"];
+          this.plugin.settings.overtimeTagId = value.trim();
           await this.plugin.saveSettings();
         }));
 
@@ -161,32 +153,14 @@ export class ClockifySettingTab extends PluginSettingTab {
           this.plugin.settings.promptBeforeOvertime = value;
           await this.plugin.saveSettings();
         }));
-
-    new Setting(containerEl)
-      .setName("Overtime tag ID")
-      .addText((text) => text
-        .setValue(this.plugin.settings.overtimeTagId)
-        .onChange(async (value) => {
-          this.plugin.settings.overtimeTagId = value.trim();
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName("Overtime project ID")
-      .addText((text) => text
-        .setValue(this.plugin.settings.overtimeProjectId)
-        .onChange(async (value) => {
-          this.plugin.settings.overtimeProjectId = value.trim();
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName("Overtime task ID")
-      .addText((text) => text
-        .setValue(this.plugin.settings.overtimeTaskId)
-        .onChange(async (value) => {
-          this.plugin.settings.overtimeTaskId = value.trim();
-          await this.plugin.saveSettings();
-        }));
   }
+}
+
+function normalizeTimeInput(value: string, fallback: string): string {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{1,2})(?::?(\d{2}))?$/);
+  if (!match) return fallback;
+  const hour = Math.min(23, Number(match[1]));
+  const minute = Math.min(59, Number(match[2] ?? "0"));
+  return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 }
