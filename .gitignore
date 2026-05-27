@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.js.map
 data.json
+.env.local
 .obsidian/
 .direnv/
 result

@@ -1,7 +1,7 @@
 import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
 import { ClockifyClient } from "./clockifyClient";
 import { DEFAULT_SETTINGS } from "./defaults";
-import { decideOvertimeSwitch } from "./overtime";
+import { applyOvertimeMarker, decideOvertimeSwitch } from "./overtime";
 import { ClockifySettingTab } from "./settings";
 import { ClockifyTrackerView, VIEW_TYPE_CLOCKIFY_TRACKER } from "./view";
 import { ClockifySettings, MetadataCache, TimeEntryDraft } from "./types";
@@ -19,6 +19,7 @@ export default class ClockifyObsidianPlugin extends Plugin {
   private overtimeInterval: number | null = null;
 
   async onload(): Promise<void> {
+    console.log("Clockify Tracker loading");
     await this.loadSettings();
     this.addSettingTab(new ClockifySettingTab(this.app, this));
 
@@ -60,10 +61,12 @@ export default class ClockifyObsidianPlugin extends Plugin {
     });
 
     this.restartOvertimeWatcher();
+    console.log("Clockify Tracker loaded");
   }
 
   onunload(): void {
     if (this.overtimeInterval !== null) window.clearInterval(this.overtimeInterval);
+    console.log("Clockify Tracker unloaded");
   }
 
   async loadSettings(): Promise<void> {
@@ -145,7 +148,6 @@ export default class ClockifyObsidianPlugin extends Plugin {
         new Notice("No Clockify timer is running.");
         return;
       }
-      const { applyOvertimeMarker } = await import("./overtime");
       const overtimeEntry = applyOvertimeMarker(runningEntry, this.settings);
       await this.client.stopTimer();
       await this.client.startTimer({
