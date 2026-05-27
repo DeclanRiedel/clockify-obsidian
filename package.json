@@ -1,0 +1,29 @@
+{
+  "name": "clockify-obsidian",
+  "version": "0.1.0",
+  "description": "Fast Clockify tracker and editor for Obsidian.",
+  "main": "main.js",
+  "scripts": {
+    "build": "tsc -noEmit && node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "check": "tsc -noEmit && vitest run"
+  },
+  "keywords": [
+    "obsidian",
+    "clockify",
+    "time-tracking"
+  ],
+  "author": "Declan",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "builtin-modules": "^5.0.0",
+    "esbuild": "^0.25.4",
+    "obsidian": "^1.8.7",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  }
+}
+
