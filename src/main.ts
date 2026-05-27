@@ -53,6 +53,12 @@ export default class ClockifyObsidianPlugin extends Plugin {
       callback: () => this.refreshMetadata(true)
     });
 
+    this.addCommand({
+      id: "switch-clockify-timer-to-overtime",
+      name: "Switch current timer to overtime",
+      callback: () => this.switchCurrentTimerToOvertime()
+    });
+
     this.restartOvertimeWatcher();
   }
 
@@ -123,6 +129,37 @@ export default class ClockifyObsidianPlugin extends Plugin {
       new Notice("Clockify timer stopped.");
     } catch (error) {
       new Notice(error instanceof Error ? error.message : "Could not stop Clockify timer.");
+    }
+  }
+
+  async switchCurrentTimerToOvertime(): Promise<void> {
+    if (!this.settings.workspaceId || !this.settings.userId) {
+      new Notice("Clockify workspace/user is not configured.");
+      return;
+    }
+    try {
+      const now = new Date();
+      const entries = await this.client.getEntries(startOfLocalDay(now), now);
+      const runningEntry = entries.find((entry) => !entry.timeInterval.end);
+      if (!runningEntry) {
+        new Notice("No Clockify timer is running.");
+        return;
+      }
+      const { applyOvertimeMarker } = await import("./overtime");
+      const overtimeEntry = applyOvertimeMarker(runningEntry, this.settings);
+      await this.client.stopTimer();
+      await this.client.startTimer({
+        description: overtimeEntry.description ?? runningEntry.description,
+        start: new Date(),
+        projectId: overtimeEntry.projectId ?? runningEntry.projectId ?? undefined,
+        taskId: overtimeEntry.taskId ?? runningEntry.taskId ?? undefined,
+        tagIds: overtimeEntry.tagIds ?? runningEntry.tagIds ?? [],
+        billable: overtimeEntry.billable ?? runningEntry.billable ?? false
+      });
+      this.refreshOpenViews();
+      new Notice("Clockify switched current timer to overtime.");
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : "Could not switch Clockify timer to overtime.");
     }
   }
 

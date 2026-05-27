@@ -17,6 +17,5 @@ export const DEFAULT_SETTINGS: ClockifySettings = {
   dailyLimitMinutes: 480,
   weeklyLimitMinutes: 2400,
   overtimeCheckSeconds: 60,
-  promptBeforeOvertime: true
+  promptBeforeOvertime: false
 };
-

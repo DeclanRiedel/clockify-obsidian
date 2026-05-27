@@ -153,6 +153,16 @@ export class ClockifySettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
+      .setName("Prompt before switching")
+      .setDesc("When off, the plugin automatically stops the normal timer and starts the overtime timer.")
+      .addToggle((toggle) => toggle
+        .setValue(this.plugin.settings.promptBeforeOvertime)
+        .onChange(async (value) => {
+          this.plugin.settings.promptBeforeOvertime = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
       .setName("Overtime tag ID")
       .addText((text) => text
         .setValue(this.plugin.settings.overtimeTagId)
