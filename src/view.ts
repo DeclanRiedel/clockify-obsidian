@@ -204,9 +204,9 @@ export class ClockifyTrackerView extends ItemView {
       const meta = main.createDiv({ cls: "clockify-entry-meta" });
       const projectSelect = this.createProjectSelect(meta, entry.projectId ?? "");
       const taskSelect = this.createTaskSelect(meta, projectSelect.value, entry.taskId ?? "");
-      projectSelect.addEventListener("change", () => {
+      projectSelect.addEventListener("change", async () => {
         taskSelect.empty();
-        this.fillTaskSelect(taskSelect, projectSelect.value, "");
+        await this.fillTaskSelect(taskSelect, projectSelect.value, "");
       });
       const tagSelect = this.createTagSelect(meta, entry.tagIds ?? []);
       const billable = meta.createEl("label", { cls: "clockify-billable" });
@@ -351,12 +351,23 @@ export class ClockifyTrackerView extends ItemView {
 
   private createTaskSelect(parent: HTMLElement, projectId: string, value: string): HTMLSelectElement {
     const select = parent.createEl("select", { cls: "clockify-task-select" });
-    this.fillTaskSelect(select, projectId, value);
+    void this.fillTaskSelect(select, projectId, value);
     return select;
   }
 
-  private fillTaskSelect(select: HTMLSelectElement, projectId: string, value: string): void {
+  private async fillTaskSelect(select: HTMLSelectElement, projectId: string, value: string): Promise<void> {
     select.createEl("option", { value: "", text: "No task" });
+    if (projectId && !this.plugin.metadata.tasksByProject[projectId]) {
+      select.createEl("option", { value: "", text: "Loading tasks..." });
+      try {
+        this.plugin.metadata.tasksByProject[projectId] = await this.plugin.client.getTasks(projectId);
+        await this.plugin.saveSettings();
+      } catch (error) {
+        await this.plugin.debugLog(`tasks failed: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+      select.empty();
+      select.createEl("option", { value: "", text: "No task" });
+    }
     for (const task of this.plugin.metadata.tasksByProject[projectId] ?? []) {
       select.createEl("option", { value: task.id, text: task.name });
     }

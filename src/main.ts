@@ -111,11 +111,12 @@ export default class ClockifyObsidianPlugin extends Plugin {
     try {
       const projects = await this.client.getProjects();
       const tags = await this.client.getTags();
-      const tasksByProject: MetadataCache["tasksByProject"] = {};
-      await Promise.all(projects.slice(0, 200).map(async (project) => {
-        tasksByProject[project.id] = await this.client.getTasks(project.id);
-      }));
-      this.metadata = { projects, tags, tasksByProject, fetchedAt: new Date().toISOString() };
+      this.metadata = {
+        projects,
+        tags,
+        tasksByProject: this.metadata.tasksByProject ?? {},
+        fetchedAt: new Date().toISOString()
+      };
       await this.saveSettings();
       this.refreshOpenViews();
       if (showNotice) new Notice("Clockify metadata refreshed.");
